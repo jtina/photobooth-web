@@ -4,7 +4,7 @@ A photo booth web app made for the iPad. Add it to the iPad home screen and it
 opens full screen like a native app. It is plain HTML/JS with no build tools.
 
 **Flow:** Start → Photo Strip or Multi-Frame → frame color or theme (and
-front/rear camera) → 8 photos with a 10-second countdown → pick your photos →
+front/rear camera) → 8 photos, each with a quick countdown from 10 (about 7 seconds) → pick your photos →
 stickers and filters (when no theme is used) → print options → the photo strip
 and a 4× sped-up countdown video are uploaded to Supabase and shown as QR codes.
 

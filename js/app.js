@@ -1,6 +1,7 @@
 import {
   CAPTURE_COUNT,
   COUNTDOWN_SECONDS,
+  COUNTDOWN_TICK_MS,
   FILTERS,
   FRAME_COLORS,
   MULTI_FRAME_LAYOUTS,
@@ -923,7 +924,7 @@ screens.camera = () => {
       const clip = camera.startClip();
       for (let n = COUNTDOWN_SECONDS; n >= 1; n--) {
         countdownEl.textContent = String(n);
-        await sleep(1000);
+        await sleep(COUNTDOWN_TICK_MS);
         guard();
       }
       countdownEl.textContent = '0';

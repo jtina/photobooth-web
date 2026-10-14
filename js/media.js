@@ -3,7 +3,7 @@
 //
 // Instead of one long recording that is cut up afterwards, each countdown is
 // recorded as its own clip that ends at the moment the photo is taken. That is
-// exactly the "10 seconds before each photo" segment the iOS app extracted, and
+// exactly the "countdown before each photo" segment the iOS app extracted, and
 // it avoids seeking inside MediaRecorder output (unreliable in some browsers).
 
 import { createCanvas } from './render.js';

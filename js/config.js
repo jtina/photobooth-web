@@ -12,6 +12,9 @@ export const COLORS = {
 
 export const CAPTURE_COUNT = 8;
 export const COUNTDOWN_SECONDS = 10;
+// The countdown still shows 10 → 1, but each number lasts 0.7 s, so the
+// whole countdown takes about 7 seconds.
+export const COUNTDOWN_TICK_MS = 700;
 
 const norm = (x, y, w, h, cw, ch) => ({ x: x / cw, y: y / ch, w: w / cw, h: h / ch });
 
