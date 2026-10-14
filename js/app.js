@@ -1531,7 +1531,6 @@ screens.printing = () => {
   );
   const restartArea = h('div', { class: 'restart-area' });
   const stripArea = h('div', { class: 'strip-preview' }, h('div', { class: 'spinner' }));
-  const holdHint = (text) => h('div', { class: 'hold-hint' }, text);
 
   const showVideoUnavailable = () =>
     videoArea.replaceChildren(
@@ -1589,7 +1588,6 @@ screens.printing = () => {
       // Press and hold the image for the iPad's own "Save to Photos" menu.
       const img = h('img', { class: 'strip-image', src: await blobToDataURL(blob), alt: 'Your photo strip' });
       stripArea.replaceChildren(img);
-      stripArea.after(holdHint('Press and hold to save'));
       try {
         photoQR.set(await upload(`${sessionID}/photo.jpg`, blob, 'image/jpeg'));
       } catch (error) {
@@ -1613,7 +1611,6 @@ screens.printing = () => {
       videoArea.replaceChildren(h('video', { src: url, autoplay: true, loop: true, muted: true, playsinline: true }));
       const ext = extensionFor(video.type);
       holdToSave(videoArea, new File([video], `MiKi-Booth-${sessionID}.${ext}`, { type: video.type.split(';')[0] }), 'Video');
-      videoArea.after(holdHint('Press and hold to save'));
       try {
         videoQR.set(await upload(`${sessionID}/video.${ext}`, video, video.type.split(';')[0]));
       } catch (error) {
@@ -1877,9 +1874,32 @@ const appEl = document.getElementById('app');
  * than the design (e.g. 4:3 iPads) the canvas gets taller, on wider screens it
  * gets wider; screens keep their content centered in the extra space.
  */
+const isHomeScreenApp = () =>
+  navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+
+/**
+ * The visible size of the app. iPad home-screen apps report a height that is
+ * short by the status bar while still drawing from the very top, which left a
+ * gap at the bottom; there, use the real screen height instead.
+ */
+function viewportSize() {
+  const width = window.innerWidth;
+  let height = window.innerHeight;
+  if (isHomeScreenApp() && screen.width && screen.height) {
+    const landscape = width > height;
+    const screenW = landscape ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+    const screenH = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+    // Only when the app is full screen (not in Split View / Stage Manager).
+    if (Math.abs(width - screenW) <= 2 && screenH > height && screenH - height <= 80) height = screenH;
+  }
+  return { width, height };
+}
+
 function fitStage() {
-  const { width: vw, height: vh } = appEl.getBoundingClientRect();
+  const { width: vw, height: vh } = viewportSize();
   if (!vw || !vh) return;
+  appEl.style.width = `${vw}px`;
+  appEl.style.height = `${vh}px`;
   const wider = vw / vh > DESIGN_WIDTH / DESIGN_HEIGHT;
   const width = wider ? (DESIGN_HEIGHT * vw) / vh : DESIGN_WIDTH;
   const height = wider ? DESIGN_HEIGHT : (DESIGN_WIDTH * vh) / vw;
@@ -1891,7 +1911,6 @@ function fitStage() {
 window.addEventListener('resize', fitStage);
 window.addEventListener('orientationchange', () => setTimeout(fitStage, 300));
 window.visualViewport?.addEventListener('resize', fitStage);
-if (window.ResizeObserver) new ResizeObserver(fitStage).observe(appEl);
 fitStage();
 
 // Prevent pinch-zoom of the whole page on iOS (stickers handle their own gestures).
