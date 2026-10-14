@@ -46,7 +46,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(request)
+    // Always check the server for a newer copy (GitHub Pages lets browsers
+    // reuse files for 10 minutes, which delayed updates).
+    fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();

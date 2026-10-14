@@ -1849,7 +1849,7 @@ screens.settings = () => {
       h('div', { class: 'panel-header' }, h('h1', { class: 'title' }, 'Settings')),
       h('div', { class: 'divider' }),
       body,
-      h('div', { class: 'bottom-bar' }, backButton()),
+      h('div', { class: 'bottom-bar' }, backButton(), h('div', { class: 'screen-report' }, screenReport())),
     ),
   );
   return {
@@ -1877,22 +1877,57 @@ const appEl = document.getElementById('app');
 const isHomeScreenApp = () =>
   navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
 
+// Measures 100vh and the safe-area insets (iPad status bar / home indicator).
+const probe = document.createElement('div');
+probe.style.cssText =
+  'position:fixed;left:0;top:0;width:0;height:100vh;padding-top:env(safe-area-inset-top);' +
+  'padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;box-sizing:content-box;';
+document.body.append(probe);
+
+function measure() {
+  const style = getComputedStyle(probe);
+  const landscape = window.innerWidth > window.innerHeight;
+  const long = Math.max(screen.width || 0, screen.height || 0);
+  const short = Math.min(screen.width || 0, screen.height || 0);
+  return {
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    vh: parseFloat(style.height) || 0,
+    safeTop: parseFloat(style.paddingTop) || 0,
+    safeBottom: parseFloat(style.paddingBottom) || 0,
+    screenW: landscape ? long : short,
+    screenH: landscape ? short : long,
+    homeScreenApp: isHomeScreenApp(),
+  };
+}
+
 /**
- * The visible size of the app. iPad home-screen apps report a height that is
- * short by the status bar while still drawing from the very top, which left a
- * gap at the bottom; there, use the real screen height instead.
+ * The visible size of the app. iPad home-screen apps can report a height that
+ * is short by the status bar while still drawing from the very top, which
+ * leaves a gap at the bottom; there, use the full screen height instead.
  */
 function viewportSize() {
-  const width = window.innerWidth;
-  let height = window.innerHeight;
-  if (isHomeScreenApp() && screen.width && screen.height) {
-    const landscape = width > height;
-    const screenW = landscape ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-    const screenH = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
-    // Only when the app is full screen (not in Split View / Stage Manager).
-    if (Math.abs(width - screenW) <= 2 && screenH > height && screenH - height <= 80) height = screenH;
+  const m = measure();
+  let height = m.innerHeight;
+  // Only for a full-screen home-screen app (not Split View / Stage Manager).
+  if (m.homeScreenApp && m.screenW && Math.abs(m.innerWidth - m.screenW) <= 2) {
+    const candidates = [m.vh, m.innerHeight + m.safeTop];
+    if (m.screenH - m.innerHeight <= 80) candidates.push(m.screenH);
+    height = Math.min(m.screenH, Math.max(height, ...candidates));
   }
-  return { width, height };
+  return { width: m.innerWidth, height };
+}
+
+/** One-line size report shown at the bottom of Settings, for troubleshooting. */
+function screenReport() {
+  const m = measure();
+  const r = (v) => Math.round(v);
+  const app = viewportSize();
+  return (
+    `Screen ${r(m.screenW)}×${r(m.screenH)} · window ${r(m.innerWidth)}×${r(m.innerHeight)} · 100vh ${r(m.vh)} · ` +
+    `safe area ${r(m.safeTop)}/${r(m.safeBottom)} · app ${r(app.width)}×${r(app.height)} · ` +
+    `home-screen app: ${m.homeScreenApp ? 'yes' : 'no'}`
+  );
 }
 
 function fitStage() {

@@ -24,8 +24,17 @@ video (**Save Video** in the share sheet) to save them straight onto the iPad.
 2. Tap **Share** → **Add to Home Screen** → **Add**.
 3. Open it from the home screen and allow camera access when asked.
 
-Tip: for a kiosk, use **Settings → Accessibility → Guided Access** to lock the
-iPad to the app.
+### Locking the iPad to the booth (Guided Access)
+
+1. On the iPad: **Settings → Accessibility → Guided Access** → turn it on.
+2. **Passcode Settings → Set Guided Access Passcode** (use one guests won't
+   guess; Face ID / Touch ID can also be turned on to end it).
+3. Optional: **Display Auto-Lock → Never**, so the screen stays on.
+4. Open MiKi Booth from the home screen and **triple-click the top button**
+   (or the Home button on older iPads), then tap **Start**.
+
+Swiping home, the app switcher, Control Center and notifications are now
+blocked. To leave, triple-click again and enter the passcode.
 
 ## Setting up Supabase (uploads + QR codes)
 
