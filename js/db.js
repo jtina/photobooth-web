@@ -14,8 +14,17 @@ function openDB() {
           if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name, { keyPath: 'id' });
         }
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const db = request.result;
+        // Let a newer version of the app (e.g. another open tab after an
+        // update) upgrade the database instead of being blocked by this one.
+        db.onversionchange = () => db.close();
+        resolve(db);
+      };
       request.onerror = () => reject(request.error);
+    }).catch((error) => {
+      dbPromise = null; // try again next time
+      throw error;
     });
     // Ask the browser not to clear saved items when storage is low.
     navigator.storage?.persist?.().catch(() => {});

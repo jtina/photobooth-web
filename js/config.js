@@ -79,6 +79,15 @@ export const FILTERS = [
 // Where finished photos and videos are uploaded for the QR codes.
 // Fill these in from your Supabase project (see README → "Setting up Supabase").
 // While they are empty the booth still works; it just skips the uploads and QR codes.
+// Settings used on a device until they are changed in the Settings screen
+// (cog on the start screen). Change these to set your own defaults for every
+// iPad / browser that opens the booth.
+export const DEFAULT_SETTINGS = {
+  restartCountdown: true, // auto-restart 30 s after a session finishes
+  showPrintPage: true, // the print options page and the "Printing...." message
+  countdownSeconds: 7, // how long the 10 → 1 countdown takes (3–15)
+};
+
 export const SUPABASE = {
   url: '', // e.g. 'https://abcdefghijklmnop.supabase.co'
   publishableKey: '', // e.g. 'sb_publishable_...'

@@ -1,26 +1,46 @@
 // Booth settings (behind the PIN on the start screen), saved on this device.
 
 import { createCanvas } from './render.js';
+import { DEFAULT_SETTINGS } from './config.js';
 import { loadFileImage, run } from './db.js';
 
 export const SETTINGS_PIN = '2468';
 
-const DEFAULTS = {
-  restartCountdown: true, // auto-restart 30 s after a session finishes
-  showPrintPage: true, // the print options page and the "Printing...." message
-  countdownSeconds: 7, // how long the 10 → 1 countdown takes
-  startImage: null, // Blob for a custom start screen, or null for the default
-};
+const DEFAULTS = { ...DEFAULT_SETTINGS, startImage: null }; // startImage: Blob or null
+const BACKUP_KEY = 'miki-booth-settings';
 
 export const settings = { ...DEFAULTS };
 let startImageURL = null;
 
+// Settings are saved in IndexedDB, with a second copy of the simple ones in
+// localStorage, so they survive app updates and restarts on this device.
+function readBackup() {
+  try {
+    return JSON.parse(localStorage.getItem(BACKUP_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function writeBackup() {
+  try {
+    const { startImage, ...simple } = settings;
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(simple));
+  } catch {
+    // Storage unavailable (e.g. private browsing): IndexedDB copy only.
+  }
+}
+
 export async function loadSettings() {
+  const apply = (values) => {
+    for (const [key, value] of Object.entries(values)) if (key in DEFAULTS && value !== undefined) settings[key] = value;
+  };
+  apply(readBackup());
   try {
     const records = await run('settings', 'readonly', (store) => store.getAll());
-    for (const { id, value } of records) if (id in DEFAULTS) settings[id] = value;
+    apply(Object.fromEntries(records.map(({ id, value }) => [id, value])));
   } catch {
-    // Storage unavailable: keep the defaults.
+    // IndexedDB unavailable: keep the localStorage copy / defaults.
   }
 }
 
@@ -30,7 +50,12 @@ export async function setSetting(key, value) {
     URL.revokeObjectURL(startImageURL);
     startImageURL = null;
   }
-  await run('settings', 'readwrite', (store) => store.put({ id: key, value }));
+  writeBackup();
+  try {
+    await run('settings', 'readwrite', (store) => store.put({ id: key, value }));
+  } catch {
+    if (key === 'startImage') throw new Error('The start screen photo could not be saved on this device.');
+  }
 }
 
 /** Milliseconds per number in the 10 → 1 countdown. */

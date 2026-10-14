@@ -89,6 +89,15 @@ Tap the cog in the top-right corner of the start screen and enter the PIN
 - **Start screen photo:** choose or paste your own start screen, or go back to
   the default. Tapping anywhere on the start screen begins a session.
 
+Settings, themes and stickers are saved on the device and stay after closing
+the app, restarting the iPad, or deploying an update. Each place the app is
+opened keeps its own copy, though: on the iPad, **Safari and the home-screen
+app do not share saved data**, so set things up inside the home-screen app.
+Likewise your PC's browser and `localhost` keep separate copies.
+
+To make your preferred settings the starting point everywhere (e.g. on a new
+iPad), change `DEFAULT_SETTINGS` in `js/config.js` and push.
+
 ## Stickers and themes
 
 These are added on the device and saved there (they are not uploaded):
