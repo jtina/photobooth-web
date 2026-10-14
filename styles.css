@@ -167,26 +167,18 @@ img {
   margin-top: 6px;
 }
 
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--accent);
-  padding: 8px 12px 8px 4px;
-}
-
-.back-link .icon {
-  font-size: 26px;
-}
-
 .bottom-bar {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
   padding: 0 35px 28px;
+}
+
+/* Full-screen pages (no white panel): line the Back button up with the one
+   on panel pages. */
+.bottom-bar.edge {
+  padding: 0 57px 60px;
 }
 
 .pill {
@@ -217,9 +209,16 @@ img {
   border-color: var(--border);
 }
 
+.pill.back,
+.pink-bg .pill.back,
+.print-bg .pill.back {
+  color: var(--accent);
+  border-color: var(--border);
+  background: #fff;
+}
+
 .pill.soft {
   background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 8px rgba(224, 120, 145, 0.15);
 }
 
 .pill.wide {
@@ -260,36 +259,26 @@ img {
 
 .start-hotspot {
   position: absolute;
-  left: 50%;
-  top: 64%;
-  width: 28%;
-  height: 16%;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-}
-
-.start-hotspot:active {
-  background: rgba(255, 255, 255, 0.25);
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* ------------------------------------------------------------------ */
 /* Format selection                                                    */
 /* ------------------------------------------------------------------ */
 
-.format-screen > .back-link,
-.camera-top {
-  position: absolute;
-  left: 20px;
-  top: 16px;
-  z-index: 5;
+.format-screen {
+  justify-content: flex-start;
 }
 
 .format-cards {
   display: flex;
   gap: 24px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  padding: 30px 24px;
+  padding: 24px 24px 16px;
   align-items: center;
   justify-content: center;
 }
@@ -315,11 +304,6 @@ img {
   flex: none;
   outline: 2px solid rgba(142, 142, 147, 0.55);
   overflow: hidden;
-}
-
-.frame-preview.rounded {
-  border-radius: 10px;
-  outline: none;
 }
 
 .photo-window {
@@ -485,7 +469,6 @@ img {
   color: #fff;
   font-size: 30px;
   display: flex;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
 }
 
 .swatch-check.on-dark {
@@ -593,12 +576,16 @@ img {
 /* ------------------------------------------------------------------ */
 
 .camera-screen {
-  justify-content: center;
-  padding-top: 30px;
+  justify-content: flex-start;
+  padding-top: 18px;
+}
+
+.camera-screen .bottom-bar {
+  margin-top: auto;
 }
 
 .camera-hud {
-  width: 900px;
+  width: 860px;
   display: flex;
   align-items: center;
   padding: 0 0 18px;
@@ -634,8 +621,8 @@ img {
 
 .camera-frame {
   position: relative;
-  width: 900px;
-  height: 625px;
+  width: 860px;
+  height: 597px;
   overflow: hidden;
   background: #000;
   outline: 2px solid rgba(255, 45, 85, 0.45);
@@ -855,8 +842,8 @@ img {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: rgba(242, 194, 207, 0.75);
-  border: 1px solid var(--border);
+  background: var(--accent);
+  border: none;
   color: #fff;
   font-size: 22px;
   display: flex;
@@ -1025,9 +1012,6 @@ img {
   color: #fff;
 }
 
-.print-screen .bottom-bar {
-  padding: 0 45px 30px;
-}
 
 /* ------------------------------------------------------------------ */
 /* Printing                                                            */
@@ -1446,4 +1430,156 @@ img {
 
 .sticker-picker.compact .paste-icon {
   font-size: 28px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Settings                                                            */
+/* ------------------------------------------------------------------ */
+
+.settings-cog {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  border: 2px solid var(--border);
+  color: var(--accent);
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.pin-panel {
+  align-items: center;
+}
+
+.pin-title {
+  margin-top: 40px;
+}
+
+.pin-dots {
+  display: flex;
+  gap: 22px;
+  margin: 26px 0 30px;
+}
+
+.pin-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+}
+
+.pin-dot.filled {
+  background: var(--accent);
+}
+
+.pin-dots.wrong {
+  animation: shake 0.4s;
+}
+
+.pin-dots.wrong .pin-dot {
+  border-color: var(--hot);
+  background: var(--hot);
+}
+
+@keyframes shake {
+  20%, 60% { transform: translateX(-12px); }
+  40%, 80% { transform: translateX(12px); }
+}
+
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 84px);
+  gap: 16px;
+}
+
+.pin-key {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.pin-key:active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.pin-key.small-text {
+  font-size: 26px;
+}
+
+.settings-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 45px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--border);
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.settings-note {
+  font-size: 16px;
+  opacity: 0.75;
+}
+
+.settings-toggle {
+  width: 240px;
+  flex: none;
+}
+
+.stepper-value.wide {
+  min-width: 70px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.settings-actions .pill {
+  min-width: 0;
+}
+
+.start-thumb {
+  width: 260px;
+  height: 180px;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  flex: none;
 }

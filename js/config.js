@@ -12,9 +12,6 @@ export const COLORS = {
 
 export const CAPTURE_COUNT = 8;
 export const COUNTDOWN_SECONDS = 10;
-// The countdown still shows 10 → 1, but each number lasts 0.7 s, so the
-// whole countdown takes about 7 seconds.
-export const COUNTDOWN_TICK_MS = 700;
 
 const norm = (x, y, w, h, cw, ch) => ({ x: x / cw, y: y / ch, w: w / cw, h: h / ch });
 
@@ -88,15 +85,18 @@ export const SUPABASE = {
   bucket: 'photobooth',
 };
 
-/** Canvas size and photo windows for the current frame choice. */
+/**
+ * Canvas size and photo windows for the current frame choice. A theme (strip
+ * or multi-frame artwork) takes priority over the plain layout.
+ */
 export function frameGeometry({ layout, template }) {
-  if (layout) return { width: layout.width, height: layout.height, photoRects: layout.photoRects };
   if (template) return { width: template.width, height: template.height, photoRects: template.photoRects };
+  if (layout) return { width: layout.width, height: layout.height, photoRects: layout.photoRects };
   return STANDARD_STRIP;
 }
 
 export function photoCountFor({ layout, template }) {
-  if (layout) return layout.photoRects.length;
   if (template) return template.photoCount;
+  if (layout) return layout.photoRects.length;
   return 4;
 }

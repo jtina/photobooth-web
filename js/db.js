@@ -1,14 +1,14 @@
-// Small IndexedDB wrapper for things saved on this device (stickers, themes).
+// Small IndexedDB wrapper for things saved on this device (stickers, themes, settings).
 
 const DB_NAME = 'miki-booth';
-const STORES = ['stickers', 'themes'];
+const STORES = ['stickers', 'themes', 'settings'];
 
 let dbPromise = null;
 
 function openDB() {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 2);
+      const request = indexedDB.open(DB_NAME, 3);
       request.onupgradeneeded = () => {
         for (const name of STORES) {
           if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name, { keyPath: 'id' });

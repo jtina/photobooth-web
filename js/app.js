@@ -1,7 +1,6 @@
 import {
   CAPTURE_COUNT,
   COUNTDOWN_SECONDS,
-  COUNTDOWN_TICK_MS,
   FILTERS,
   FRAME_COLORS,
   MULTI_FRAME_LAYOUTS,
@@ -13,6 +12,7 @@ import { CameraSession, buildSelectedVideo, extensionFor } from './media.js';
 import { ensureAuthenticated, makeSessionID, uploadMedia, uploadsConfigured } from './upload.js';
 import { addCustomStickers, deleteCustomSticker, listCustomStickers } from './sticker-store.js';
 import { canReadClipboard, onPasteImages, readClipboardImages } from './clipboard.js';
+import { SETTINGS_PIN, countdownTickMs, loadSettings, prepareStartImage, setSetting, settings, startScreenImage } from './settings.js';
 import {
   MAX_THEME_PHOTOS,
   deleteTheme,
@@ -56,6 +56,7 @@ const ICONS = {
   sparkles: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 2.5 11.8 8l5.7 1.8-5.7 1.8L10 17.3l-1.8-5.7-5.7-1.8L8.2 8 10 2.5Zm8 10 .9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6Z"/></svg>',
   videoSlash: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M15 10l6-3v10l-2-1M4 6h9a2 2 0 0 1 2 2v8M15 18H4a2 2 0 0 1-2-2V8"/></svg>',
   paste: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 4H6.5A1.5 1.5 0 0 0 5 5.5v14A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-14A1.5 1.5 0 0 0 17.5 4H15M9 3h6v3H9zM9 11h6M9 15h4"/></svg>',
+  cog: '<svg viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.8a7 7 0 0 1 0 1.9l2 1.8-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6a7 7 0 0 1-1.7-.9l-2.5.9-1.7-2.9 2-1.8a7 7 0 0 1 0-1.9l-2-1.8 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9L10.3 2Zm1.7 6.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/></svg>',
   qr: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 3h8v8H3V3Zm2 2v4h4V5H5Zm8-2h8v8h-8V3Zm2 2v4h4V5h-4ZM3 13h8v8H3v-8Zm2 2v4h4v-4H5Zm8-2h2v2h-2v-2Zm2 2h2v2h-2v-2Zm2-2h4v2h-4v-2Zm2 4h2v4h-4v-2h2v-2Zm-6 2h2v2h-2v-2Z"/></svg>',
 };
 
@@ -178,8 +179,14 @@ function goToSelection() {
 // Shared pieces
 // ---------------------------------------------------------------------------
 
+/** The Back button: always the rounded pill at the bottom left of a screen. */
 function backButton(onClick = () => nav.back()) {
-  return h('button', { class: 'back-link', onClick }, icon('chevronLeft'), 'Back');
+  return h('button', { class: 'pill back', onClick }, 'Back');
+}
+
+/** Print options page, unless it is turned off in Settings. */
+function goToPrint() {
+  nav.push(settings.showPrintPage ? 'print' : 'printing');
 }
 
 function pillButton(label, onClick, { cls = '', disabled = false } = {}) {
@@ -197,7 +204,7 @@ function fit(aspect, maxW, maxH) {
  * normalized rects the renderer uses, so the preview matches the final image.
  */
 function framePreview({ maxW, maxH, photos = [], showTemplate = true, color = session.frameColor, layout = session.layout, template = session.template }) {
-  const tpl = layout ? null : template;
+  const tpl = template;
   const geometry = frameGeometry({ layout, template: tpl });
   const size = fit(geometry.width / geometry.height, maxW, maxH);
   const el = h('div', {
@@ -230,10 +237,12 @@ function framePreview({ maxW, maxH, photos = [], showTemplate = true, color = se
 // ---------------------------------------------------------------------------
 
 screens.start = () => {
+  // The whole screen starts a session (custom start photos may put their
+  // START button anywhere). The cog opens Settings behind a PIN.
   const el = h(
     'div',
     { class: 'screen start-screen' },
-    h('img', { class: 'start-image', src: 'assets/start-screen.png', alt: 'MiKi Booth' }),
+    h('img', { class: 'start-image', src: startScreenImage(), alt: 'MiKi Booth' }),
     h('button', {
       class: 'start-hotspot',
       'aria-label': 'Start',
@@ -242,6 +251,7 @@ screens.start = () => {
         nav.push('format');
       },
     }),
+    h('button', { class: 'settings-cog', 'aria-label': 'Settings', onClick: () => nav.push('pin') }, icon('cog')),
   );
   return { el };
 };
@@ -257,7 +267,6 @@ screens.format = () => {
   const el = h(
     'div',
     { class: 'screen pink-bg format-screen' },
-    backButton(),
     h(
       'div',
       { class: 'format-cards' },
@@ -267,6 +276,7 @@ screens.format = () => {
       }),
       card('assets/format-multiframe.png', 'Multi-Frame', () => nav.push('multiframe')),
     ),
+    h('div', { class: 'bottom-bar edge' }, backButton()),
   );
   return { el };
 };
@@ -278,7 +288,6 @@ screens.format = () => {
 screens.multiframe = () => {
   const cards = MULTI_FRAME_LAYOUTS.map((layout) => {
     const { el: preview } = framePreview({ maxW: 330, maxH: 230, layout, template: null });
-    preview.classList.add('rounded');
     return h(
       'button',
       {
@@ -305,9 +314,10 @@ screens.multiframe = () => {
     h(
       'div',
       { class: 'panel' },
-      h('div', { class: 'panel-title-row' }, backButton(), h('h1', { class: 'title' }, 'Multi-Frame')),
+      h('div', { class: 'panel-title-row' }, h('h1', { class: 'title' }, 'Multi-Frame')),
       h('div', { class: 'subtitle center' }, 'Choose Your Layout'),
       h('div', { class: 'layout-grid' }, cards),
+      h('div', { class: 'bottom-bar' }, backButton()),
     ),
   );
   return { el };
@@ -325,7 +335,7 @@ screens.frame = () => {
 
   const renderPreview = () => {
     previewArea.replaceChildren();
-    if (session.layout) {
+    if (session.layout && !session.template) {
       previewArea.append(framePreview({ maxW: 430, maxH: 470 }).el);
     } else if (session.template) {
       previewArea.append(framePreview({ maxW: 430, maxH: 500 }).el);
@@ -341,7 +351,9 @@ screens.frame = () => {
   const toggle = (label, iconName, active, onClick) =>
     h('button', { class: `toggle ${active ? 'active' : ''}`, onClick }, iconName ? icon(iconName) : null, label);
 
-  // Themes are added from the iPad's photos and saved on the device.
+  // Themes are added from the iPad's photos and saved on the device. Photo
+  // strips and multi-frame prints each have their own list of themes.
+  const themeKind = session.layout ? 'multi' : 'strip';
   const themeGrid = h('div', { class: 'template-grid' });
   const themeInput = h('input', { type: 'file', accept: 'image/*', class: 'hidden' });
   const addThemeTile = h(
@@ -372,7 +384,7 @@ screens.frame = () => {
     if (!file || addThemeTile.disabled) return;
     addThemeTile.disabled = pasteThemeTile.disabled = true;
     try {
-      session.themeDraft = await draftFromFile(file);
+      session.themeDraft = await draftFromFile(file, themeKind);
       if (!disposed) nav.push('themeEditor');
     } catch (error) {
       alert(error.message ?? 'That image could not be used as a theme.');
@@ -387,14 +399,13 @@ screens.frame = () => {
     startTheme(file);
   });
 
-  // Ctrl+V / ⌘V with an image starts a new theme (photo strips only).
+  // Ctrl+V / ⌘V with an image starts a new theme.
   const stopPaste = onPasteImages('Pasted Theme', (files) => {
-    if (session.layout) return;
     startTheme(files[0]);
   });
 
   async function refreshThemes() {
-    const themes = await listThemes();
+    const themes = (await listThemes()).filter((t) => t.kind === themeKind);
     if (disposed) return;
     themeGrid.replaceChildren(
       themeInput,
@@ -434,7 +445,7 @@ screens.frame = () => {
     );
     if (!themes.length) {
       themeGrid.append(
-        h('div', { class: 'sticker-hint' }, 'Tap “Add Theme” to choose your photo strip artwork from Photos, or copy it and tap “Paste Theme”. PNGs with see-through photo windows work best.'),
+        h('div', { class: 'sticker-hint' }, `Tap “Add Theme” to choose your ${themeKind === 'multi' ? 'multi-frame' : 'photo strip'} artwork from Photos, or copy it and tap “Paste Theme”. PNGs with see-through photo windows work best.`),
       );
     }
   }
@@ -514,16 +525,6 @@ screens.frame = () => {
         h('div', { class: 'swatch-grid' }, swatches),
         h('label', { class: 'swatch custom-swatch' }, picker, h('span', { class: 'rainbow' })),
       );
-    } else if (session.layout) {
-      controls.append(
-        h(
-          'div',
-          { class: 'empty-themes' },
-          h('span', { class: 'icon big faded' , html: ICONS.sparkles }),
-          h('div', { class: 'empty-title' }, 'No themes available yet'),
-          h('div', { class: 'empty-text' }, 'Themes for multi-frame layouts will be added here.'),
-        ),
-      );
     } else {
       controls.append(themeGrid);
       refreshThemes();
@@ -545,7 +546,7 @@ screens.frame = () => {
       h(
         'div',
         { class: 'bottom-bar' },
-        pillButton('Back', () => nav.back()),
+        backButton(),
         h('div', { class: 'spacer' }),
         pillButton('Next', () => {
           if (hasPhotos()) goToSelection();
@@ -924,7 +925,7 @@ screens.camera = () => {
       const clip = camera.startClip();
       for (let n = COUNTDOWN_SECONDS; n >= 1; n--) {
         countdownEl.textContent = String(n);
-        await sleep(COUNTDOWN_TICK_MS);
+        await sleep(countdownTickMs());
         guard();
       }
       countdownEl.textContent = '0';
@@ -957,9 +958,9 @@ screens.camera = () => {
   const el = h(
     'div',
     { class: 'screen pink-bg camera-screen' },
-    h('div', { class: 'camera-top' }, backButton(), h('div', { class: 'spacer' })),
     h('div', { class: 'camera-hud' }, countdownEl, h('div', { class: 'spacer' }), counterEl),
     h('div', { class: 'camera-frame' }, video, still, capturing, flash, errorBox),
+    h('div', { class: 'bottom-bar edge' }, backButton()),
   );
 
   return {
@@ -980,7 +981,7 @@ screens.selection = () => {
   const previewArea = h('div', { class: 'selection-preview' });
   const grid = h('div', { class: 'photo-grid' });
   const nextButton = session.template
-    ? pillButton('Next', () => nav.push('print'), { cls: 'soft' })
+    ? pillButton('Next', () => goToPrint(), { cls: 'soft' })
     : pillButton('Edit PhotoStrip', () => {
         session.filter = 'normal';
         session.stickers = [];
@@ -1341,10 +1342,10 @@ screens.stickers = () => {
       h(
         'div',
         { class: 'bottom-bar' },
-        pillButton('Back', () => nav.back()),
+        backButton(),
         deleteButton,
         h('div', { class: 'spacer' }),
-        pillButton('Next', () => nav.push('print'), { cls: 'soft' }),
+        pillButton('Next', () => goToPrint(), { cls: 'soft' }),
       ),
     ),
   );
@@ -1396,7 +1397,6 @@ screens.print = () => {
   const el = h(
     'div',
     { class: 'screen print-bg print-screen' },
-    h('div', { class: 'camera-top' }, backButton()),
     h('h1', { class: 'title hot center' }, 'Print'),
     h(
       'div',
@@ -1406,7 +1406,7 @@ screens.print = () => {
       section(['Additional', 'Combination Mini'], '(1 Standard Strip + 4 Minis)', 'combinationSheets', [0, 1, 2]),
     ),
     h('div', { class: 'spacer' }),
-    h('div', { class: 'bottom-bar' }, h('div', { class: 'spacer' }), pillButton('Next', () => nav.push('printing'))),
+    h('div', { class: 'bottom-bar edge' }, backButton(), h('div', { class: 'spacer' }), pillButton('Next', () => nav.push('printing'))),
   );
   return { el };
 };
@@ -1427,7 +1427,9 @@ screens.printing = () => {
   let restartTimer = null;
   const objectURLs = [];
 
-  const title = h('div', { class: 'printing-title' }, 'Printing....');
+  // With the print page turned off in Settings there is no "Printing...." step.
+  const printing = settings.showPrintPage;
+  const title = h('div', { class: 'printing-title' }, printing ? 'Printing....' : 'Almost done...');
   const statusLine = h('div', { class: 'printing-status' });
 
   const qrBox = (label) => {
@@ -1460,20 +1462,27 @@ screens.printing = () => {
     );
 
   const finish = () => {
-    setTimeout(() => {
-      if (disposed) return;
-      title.textContent = 'Done!';
-      let remaining = 30;
-      const button = h('button', { class: 'restart-button', onClick: () => nav.restart() });
-      const label = () => button.replaceChildren(icon('redo'), `Restart (${remaining})`);
-      label();
-      restartArea.replaceChildren(button);
-      restartTimer = setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) nav.restart();
-        else label();
-      }, 1000);
-    }, 3000);
+    setTimeout(
+      () => {
+        if (disposed) return;
+        title.textContent = 'Done!';
+        const button = h('button', { class: 'restart-button', onClick: () => nav.restart() });
+        restartArea.replaceChildren(button);
+        if (!settings.restartCountdown) {
+          button.replaceChildren(icon('redo'), 'Restart');
+          return;
+        }
+        let remaining = 30;
+        const label = () => button.replaceChildren(icon('redo'), `Restart (${remaining})`);
+        label();
+        restartTimer = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) nav.restart();
+          else label();
+        }, 1000);
+      },
+      printing ? 3000 : 0,
+    );
   };
 
   async function process() {
@@ -1495,9 +1504,9 @@ screens.printing = () => {
       const blob = await renderPhotoStrip({
         photos: photos.map((p) => p.canvas),
         frameColor: session.frameColor,
-        template: session.layout ? null : session.template,
+        template: session.template,
         layout: session.layout,
-        stickers: session.template && !session.layout ? [] : session.stickers,
+        stickers: session.template ? [] : session.stickers,
       });
       if (disposed) return;
       try {
@@ -1570,6 +1579,203 @@ screens.printing = () => {
 };
 
 // ---------------------------------------------------------------------------
+// Settings (behind a PIN, from the cog on the start screen)
+// ---------------------------------------------------------------------------
+
+screens.pin = () => {
+  let entered = '';
+  const dots = h('div', { class: 'pin-dots' });
+  const drawDots = () =>
+    dots.replaceChildren(...[0, 1, 2, 3].map((i) => h('span', { class: `pin-dot ${i < entered.length ? 'filled' : ''}` })));
+  drawDots();
+
+  const press = (digit) => {
+    if (entered.length >= SETTINGS_PIN.length) return;
+    entered += digit;
+    drawDots();
+    if (entered.length < SETTINGS_PIN.length) return;
+    if (entered === SETTINGS_PIN) {
+      nav.replace('settings');
+      return;
+    }
+    dots.classList.add('wrong');
+    setTimeout(() => {
+      dots.classList.remove('wrong');
+      entered = '';
+      drawDots();
+    }, 500);
+  };
+
+  const key = (label, onClick, cls = '') => h('button', { class: `pin-key ${cls}`, onClick }, label);
+  const el = h(
+    'div',
+    { class: 'screen pink-bg' },
+    h(
+      'div',
+      { class: 'panel pin-panel' },
+      h('h1', { class: 'title center pin-title' }, 'Enter PIN'),
+      dots,
+      h(
+        'div',
+        { class: 'pin-pad' },
+        ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => key(d, () => press(d))),
+        h('span'),
+        key('0', () => press('0')),
+        key('⌫', () => {
+          entered = entered.slice(0, -1);
+          drawDots();
+        }, 'small-text'),
+      ),
+      h('div', { class: 'spacer' }),
+      h('div', { class: 'bottom-bar' }, backButton()),
+    ),
+  );
+
+  // Number keys on a keyboard work too.
+  const onKey = (e) => {
+    if (/^[0-9]$/.test(e.key)) press(e.key);
+    else if (e.key === 'Backspace') {
+      entered = entered.slice(0, -1);
+      drawDots();
+    }
+  };
+  document.addEventListener('keydown', onKey);
+  return { el, cleanup: () => document.removeEventListener('keydown', onKey) };
+};
+
+screens.settings = () => {
+  let disposed = false;
+  const body = h('div', { class: 'settings-body' });
+
+  const onOff = (key) =>
+    h(
+      'div',
+      { class: 'toggle-row small settings-toggle' },
+      [true, false].map((value) =>
+        h(
+          'button',
+          {
+            class: `toggle ${settings[key] === value ? 'active' : ''}`,
+            onClick: async () => {
+              await setSetting(key, value);
+              draw();
+            },
+          },
+          value ? 'On' : 'Off',
+        ),
+      ),
+    );
+
+  const row = (title, note, control) =>
+    h(
+      'div',
+      { class: 'settings-row' },
+      h('div', { class: 'settings-text' }, h('div', { class: 'settings-title' }, title), note ? h('div', { class: 'settings-note' }, note) : null),
+      control,
+    );
+
+  const setSeconds = async (value) => {
+    await setSetting('countdownSeconds', Math.min(15, Math.max(3, value)));
+    draw();
+  };
+
+  const startInput = h('input', { type: 'file', accept: 'image/*', class: 'hidden' });
+  const useStartImage = async (file) => {
+    if (!file) return;
+    try {
+      await setSetting('startImage', await prepareStartImage(file));
+      if (!disposed) draw();
+    } catch (error) {
+      alert(error.message ?? 'That image could not be used.');
+    }
+  };
+  startInput.addEventListener('change', () => {
+    const file = startInput.files[0];
+    startInput.value = '';
+    useStartImage(file);
+  });
+  const stopPaste = onPasteImages('Start screen', (files) => useStartImage(files[0]));
+
+  function draw() {
+    if (disposed) return;
+    body.replaceChildren(
+      row('Restart countdown', 'Go back to the start screen automatically 30 seconds after a session ends.', onOff('restartCountdown')),
+      row('Print page', 'Show the print options page and the “Printing....” message.', onOff('showPrintPage')),
+      row(
+        'Photo countdown',
+        'How long the countdown before each photo takes. It still counts down from 10.',
+        h(
+          'div',
+          { class: 'stepper' },
+          h('button', { class: 'stepper-btn', 'aria-label': 'Shorter', onClick: () => setSeconds(settings.countdownSeconds - 1) }, '−'),
+          h('div', { class: 'stepper-value wide' }, `${settings.countdownSeconds} s`),
+          h('button', { class: 'stepper-btn', 'aria-label': 'Longer', onClick: () => setSeconds(settings.countdownSeconds + 1) }, '+'),
+        ),
+      ),
+      h(
+        'div',
+        { class: 'settings-row start-row' },
+        h(
+          'div',
+          { class: 'settings-text' },
+          h('div', { class: 'settings-title' }, 'Start screen photo'),
+          h('div', { class: 'settings-note' }, 'Shown before each session; tapping anywhere on it starts. A landscape image (about 4:3) fits best.'),
+          h(
+            'div',
+            { class: 'settings-actions' },
+            startInput,
+            h('button', { class: 'pill small', onClick: () => startInput.click() }, 'Choose Photo'),
+            canReadClipboard
+              ? h('button', {
+                  class: 'pill small',
+                  onClick: async () => {
+                    try {
+                      await useStartImage((await readClipboardImages('Start screen'))[0]);
+                    } catch (error) {
+                      alert(error.message);
+                    }
+                  },
+                }, 'Paste')
+              : null,
+            settings.startImage
+              ? h('button', {
+                  class: 'pill small',
+                  onClick: async () => {
+                    await setSetting('startImage', null);
+                    draw();
+                  },
+                }, 'Use Default')
+              : null,
+          ),
+        ),
+        h('img', { class: 'start-thumb', src: startScreenImage(), alt: 'Start screen' }),
+      ),
+    );
+  }
+  draw();
+
+  const el = h(
+    'div',
+    { class: 'screen pink-bg' },
+    h(
+      'div',
+      { class: 'panel' },
+      h('div', { class: 'panel-header' }, h('h1', { class: 'title' }, 'Settings')),
+      h('div', { class: 'divider' }),
+      body,
+      h('div', { class: 'bottom-bar' }, backButton()),
+    ),
+  );
+  return {
+    el,
+    cleanup() {
+      disposed = true;
+      stopPaste();
+    },
+  };
+};
+
+// ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
 
@@ -1595,4 +1801,4 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-nav.restart();
+loadSettings().finally(() => nav.restart());

@@ -130,7 +130,7 @@ export async function renderPhotoStrip({ photos, frameColor, template, layout, s
   const ctx = canvas.getContext('2d');
   const toPx = (r) => ({ x: r.x * canvas.width, y: r.y * canvas.height, w: r.w * canvas.width, h: r.h * canvas.height });
 
-  if (template && !layout) {
+  if (template) {
     // Photos either show through see-through holes in the artwork (drawn
     // behind it) or sit on top of it, depending on how the theme was set up.
     const art = await loadImage(template.image);

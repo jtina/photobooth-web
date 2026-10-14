@@ -13,6 +13,7 @@ const CORE = [
   'js/config.js',
   'js/media.js',
   'js/render.js',
+  'js/settings.js',
   'js/db.js',
   'js/sticker-store.js',
   'js/theme-store.js',

@@ -4,7 +4,7 @@ A photo booth web app made for the iPad. Add it to the iPad home screen and it
 opens full screen like a native app. It is plain HTML/JS with no build tools.
 
 **Flow:** Start → Photo Strip or Multi-Frame → frame color or theme (and
-front/rear camera) → 8 photos, each with a quick countdown from 10 (about 7 seconds) → pick your photos →
+front/rear camera) → 8 photos, each with a countdown from 10 (about 7 seconds, adjustable in Settings) → pick your photos →
 stickers and filters (when no theme is used) → print options → the photo strip
 and a 4× sped-up countdown video are uploaded to Supabase and shown as QR codes.
 
@@ -75,6 +75,20 @@ Notes:
 - If uploads fail, the message under the video on the last screen says why
   (for example, a missing policy or anonymous sign-ins being off).
 
+## Settings
+
+Tap the cog in the top-right corner of the start screen and enter the PIN
+(**2468**, set in `js/settings.js`). Settings are saved on that device:
+
+- **Restart countdown:** on/off for the automatic 30-second restart at the end.
+  When off, the end screen shows a plain **Restart** button.
+- **Print page:** on/off for the print options page and the “Printing....”
+  message. When off, the booth goes straight from the photos to the QR codes.
+- **Photo countdown:** how long the 10 → 1 countdown before each photo takes
+  (3–15 seconds; default 7).
+- **Start screen photo:** choose or paste your own start screen, or go back to
+  the default. Tapping anywhere on the start screen begins a session.
+
 ## Stickers and themes
 
 These are added on the device and saved there (they are not uploaded):
@@ -82,7 +96,8 @@ These are added on the device and saved there (they are not uploaded):
 - **Stickers:** on the sticker screen tap **Add Stickers** to pick images from
   Photos, or copy an image and tap **Paste**. Tap **×** to remove one.
   Transparent PNGs work best.
-- **Themes (themed photo strips):** on the frame screen open **Theme** and tap
+- **Themes (frame artwork):** for a Photo Strip or any Multi-Frame layout, on the
+  frame screen open **Theme** and tap
   **Add Theme** (or copy the artwork and tap **Paste Theme**). Then set the
   **Number of photos**, drag each numbered box to move it, drag its corners to
   resize it (arrow pad and zoom for fine adjustments), choose whether photos go
@@ -132,6 +147,7 @@ GitHub Pages link rather than your PC's network address.
 | `js/config.js` | Supabase settings, multi-frame layouts, colors |
 | `js/media.js` | Camera, per-photo countdown clips, final 4× video |
 | `js/render.js` | Filters and the final photo strip renderer |
+| `js/settings.js` | Settings behind the PIN (saved on the device) |
 | `js/upload.js` | Supabase anonymous sign-in and uploads |
 | `js/theme-store.js` | Themes: artwork, photo windows, auto-detection |
 | `js/sticker-store.js` | Stickers added on the device |

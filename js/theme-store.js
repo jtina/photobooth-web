@@ -1,5 +1,6 @@
-// Themed photo strips chosen from the iPad's photos. Each theme stores its
-// artwork plus where the photos go, saved on this device in IndexedDB.
+// Themes (frame artwork) chosen from the iPad's photos, for photo strips or
+// multi-frame prints. Each theme stores its artwork plus where the photos go,
+// saved on this device in IndexedDB.
 
 import { createCanvas } from './render.js';
 import { loadFileImage, newID, run as runIn } from './db.js';
@@ -34,6 +35,7 @@ function toTheme(record) {
     photoRects: record.photoRects,
     photoCount: record.photoRects.length,
     photosBehind: record.photosBehind,
+    kind: record.kind ?? 'strip', // 'strip' | 'multi'
     ...outputSize(record.imageWidth, record.imageHeight),
     record,
   };
@@ -58,6 +60,7 @@ export async function saveTheme(draft) {
     imageHeight: draft.imageHeight,
     photoRects: draft.photoRects.map((r) => ({ ...r })),
     photosBehind: draft.photosBehind,
+    kind: draft.kind,
     createdAt: draft.createdAt ?? now,
     updatedAt: now,
   };
@@ -82,12 +85,13 @@ export function draftFromTheme(theme) {
     imageHeight: record.imageHeight,
     photoRects: record.photoRects.map((r) => ({ ...r })),
     photosBehind: record.photosBehind,
+    kind: record.kind ?? 'strip',
     detected: null,
   };
 }
 
 /** New theme from a picked image: resized, with photo windows auto-detected. */
-export async function draftFromFile(file) {
+export async function draftFromFile(file, kind = 'strip') {
   const img = await loadFileImage(file);
   const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
   const canvas = createCanvas(img.naturalWidth * scale, img.naturalHeight * scale);
@@ -107,6 +111,7 @@ export async function draftFromFile(file) {
     imageWidth: canvas.width,
     imageHeight: canvas.height,
     photosBehind: transparent,
+    kind,
     detected,
     photoRects: [],
   };
