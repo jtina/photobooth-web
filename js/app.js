@@ -1422,6 +1422,81 @@ function qrDataURL(text) {
   return qr.createDataURL(8, 0);
 }
 
+/** Shares a file (iPad: Save Image / Save Video) or downloads it elsewhere. */
+async function saveFile(file) {
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file] });
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+}
+
+/**
+ * Press and hold `target` to save `file`. Saving starts when the finger lifts
+ * (the iPad only allows sharing right after a touch); if that is refused, a
+ * Save button appears to tap instead.
+ */
+function holdToSave(target, file, label) {
+  let timer = null;
+  let held = false;
+  const fallback = h(
+    'button',
+    {
+      class: 'save-fallback hidden',
+      onClick: (e) => {
+        e.stopPropagation();
+        fallback.classList.add('hidden');
+        saveFile(file).catch(() => {});
+      },
+    },
+    `Save ${label}`,
+  );
+  target.append(fallback);
+  target.classList.add('hold-save');
+
+  const reset = () => {
+    clearTimeout(timer);
+    target.classList.remove('holding');
+  };
+  target.addEventListener('pointerdown', (e) => {
+    if (e.target === fallback) return;
+    held = false;
+    timer = setTimeout(() => {
+      held = true;
+      target.classList.add('holding');
+    }, 450);
+  });
+  target.addEventListener('pointerup', () => {
+    reset();
+    if (!held) return;
+    held = false;
+    saveFile(file).catch((error) => {
+      if (error?.name !== 'AbortError') fallback.classList.remove('hidden');
+    });
+  });
+  ['pointerleave', 'pointercancel'].forEach((type) =>
+    target.addEventListener(type, () => {
+      reset();
+      held = false;
+    }),
+  );
+  target.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+const blobToDataURL = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+
 screens.printing = () => {
   let disposed = false;
   let restartTimer = null;
@@ -1455,6 +1530,8 @@ screens.printing = () => {
     h('div', { class: 'video-status' }, h('div', { class: 'spinner' }), h('div', {}, 'Preparing video...')),
   );
   const restartArea = h('div', { class: 'restart-area' });
+  const stripArea = h('div', { class: 'strip-preview' }, h('div', { class: 'spinner' }));
+  const holdHint = (text) => h('div', { class: 'hold-hint' }, text);
 
   const showVideoUnavailable = () =>
     videoArea.replaceChildren(
@@ -1509,6 +1586,10 @@ screens.printing = () => {
         stickers: session.template ? [] : session.stickers,
       });
       if (disposed) return;
+      // Press and hold the image for the iPad's own "Save to Photos" menu.
+      const img = h('img', { class: 'strip-image', src: await blobToDataURL(blob), alt: 'Your photo strip' });
+      stripArea.replaceChildren(img);
+      stripArea.after(holdHint('Press and hold to save'));
       try {
         photoQR.set(await upload(`${sessionID}/photo.jpg`, blob, 'image/jpeg'));
       } catch (error) {
@@ -1517,6 +1598,7 @@ screens.printing = () => {
       }
     } catch (error) {
       photoQR.set(null);
+      stripArea.replaceChildren(h('span', { class: 'icon qr-placeholder', html: ICONS.qr }));
       errors.push(error.message ?? String(error));
     }
     if (disposed) return;
@@ -1529,8 +1611,10 @@ screens.printing = () => {
       const url = URL.createObjectURL(video);
       objectURLs.push(url);
       videoArea.replaceChildren(h('video', { src: url, autoplay: true, loop: true, muted: true, playsinline: true }));
+      const ext = extensionFor(video.type);
+      holdToSave(videoArea, new File([video], `MiKi-Booth-${sessionID}.${ext}`, { type: video.type.split(';')[0] }), 'Video');
+      videoArea.after(holdHint('Press and hold to save'));
       try {
-        const ext = extensionFor(video.type);
         videoQR.set(await upload(`${sessionID}/video.${ext}`, video, video.type.split(';')[0]));
       } catch (error) {
         videoQR.set(null);
@@ -1561,7 +1645,12 @@ screens.printing = () => {
       { class: 'panel printing-panel' },
       h('div', { class: 'printing-header' }, videoQR.el, title, photoQR.el),
       h('div', { class: 'divider' }),
-      videoArea,
+      h(
+        'div',
+        { class: 'printing-body' },
+        h('div', { class: 'video-col' }, videoArea),
+        h('div', { class: 'strip-col' }, stripArea),
+      ),
       statusLine,
       h('div', { class: 'spacer' }),
       restartArea,
@@ -1781,17 +1870,28 @@ screens.settings = () => {
 
 const DESIGN_WIDTH = 1194;
 const DESIGN_HEIGHT = 834;
+const appEl = document.getElementById('app');
 
+/**
+ * Scales the design canvas to fill the screen with no gaps: on screens taller
+ * than the design (e.g. 4:3 iPads) the canvas gets taller, on wider screens it
+ * gets wider; screens keep their content centered in the extra space.
+ */
 function fitStage() {
-  const vw = window.visualViewport?.width ?? window.innerWidth;
-  const vh = window.visualViewport?.height ?? window.innerHeight;
-  const scale = Math.min(vw / DESIGN_WIDTH, vh / DESIGN_HEIGHT);
-  stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+  const { width: vw, height: vh } = appEl.getBoundingClientRect();
+  if (!vw || !vh) return;
+  const wider = vw / vh > DESIGN_WIDTH / DESIGN_HEIGHT;
+  const width = wider ? (DESIGN_HEIGHT * vw) / vh : DESIGN_WIDTH;
+  const height = wider ? DESIGN_HEIGHT : (DESIGN_WIDTH * vh) / vw;
+  stage.style.width = `${width}px`;
+  stage.style.height = `${height}px`;
+  stage.style.transform = `scale(${vw / width})`;
 }
 
 window.addEventListener('resize', fitStage);
 window.addEventListener('orientationchange', () => setTimeout(fitStage, 300));
 window.visualViewport?.addEventListener('resize', fitStage);
+if (window.ResizeObserver) new ResizeObserver(fitStage).observe(appEl);
 fitStage();
 
 // Prevent pinch-zoom of the whole page on iOS (stickers handle their own gestures).

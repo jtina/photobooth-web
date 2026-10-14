@@ -7,6 +7,8 @@ opens full screen like a native app. It is plain HTML/JS with no build tools.
 front/rear camera) → 8 photos, each with a countdown from 10 (about 7 seconds, adjustable in Settings) → pick your photos →
 stickers and filters (when no theme is used) → print options → the photo strip
 and a 4× sped-up countdown video are uploaded to Supabase and shown as QR codes.
+On that last screen, press and hold the photo strip (**Save to Photos**) or the
+video (**Save Video** in the share sheet) to save them straight onto the iPad.
 
 ## Deploying to GitHub Pages
 
